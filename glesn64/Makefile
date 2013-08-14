@@ -22,30 +22,15 @@
 
 ARCH = ARM
 OS = LINUX
-#ARCH = X86
-#OS = WIN32
 
 CFLAGS  = -Wall -pipe -O3
 LDFLAGS =
-
-ifeq ($(ARCH), X86)
-
-SO_EXTENSION = dll
-CXX = C:/MinGW/bin/g++
-LD = C:/MinGW/bin/g++
-CFLAGS += -IC:/MinGW/include
-CFLAGS += -IC:/MinGW/include/SDL
-CFLAGS += -IC:/MinGW/include/PVR
-CFLAGS += -IC:/MinGW/include/libpng12
-CFLAGS += -DINLINE_OPT -m32
-
-else
 
 COMPILER_DIR = /usr
 SO_EXTENSION = so
 CXX =  $(COMPILER_DIR)/bin/g++
 LD =  $(COMPILER_DIR)/bin/g++
-INCLUDE = /usr/include
+INCLUDE = /usr/local/include
 CFLAGS  += -I$(INCLUDE)/libpng12
 CFLAGS  += -I$(INCLUDE)/SDL
 CFLAGS += -I$(INCLUDE)
@@ -53,11 +38,7 @@ CFLAGS += -I/opt/vc/include/
 CFLAGS += -I/opt/vc/include/interface/vcos/pthreads/
 
 CFLAGS += -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard
-
-CFLAGS  +=-DARM_ASM -D__VEC4_OPT -D__HASHMAP_OPT -D__CRC_OPT
-#CFLAGS += -D__PACKVERTEX_OPT
-CFLAGS += -D__TRIBUFFER_OPT
-endif
+CFLAGS +=  -D__CRC_OPT  -D__HASHMAP_OPT -D__TRIBUFFER_OPT -D__VEC4_OPT -DARM -DUSE_SDL -fsigned-char 
 
 ifeq ($(OS), LINUX)
 CFLAGS += -Wall -D__LINUX__ -fPIC
@@ -73,66 +54,120 @@ endif
 #CFLAGS += -DPROFILE_GBI
 #CFLAGS += -DSHADER_TEST
 
-OBJECTS =
+# set installation options
+ifeq ($(PREFIX),)
+  PREFIX := /usr/local
+endif
+ifeq ($(SHAREDIR),)
+  SHAREDIR := $(PREFIX)/share/mupen64plus
+endif
+ifeq ($(LIBDIR),)
+  LIBDIR := $(PREFIX)/lib
+endif
+ifeq ($(PLUGINDIR),)
+  PLUGINDIR := $(LIBDIR)/mupen64plus
+endif
 
-# list of object files to generate
-OBJECTS = Config.o \
-    gles2n64.o \
-	OpenGL.o \
-	N64.o \
-	RSP.o \
-	VI.o \
-	Textures.o \
-	ShaderCombiner.o \
-	gDP.o \
-	gSP.o \
-	gSPNeon.o \
-	GBI.o \
-	DepthBuffer.o \
-	CRC.o \
-	2xSAI.o \
-	RDP.o \
-	F3D.o \
-	F3DEX.o \
-	F3DEX2.o \
-	L3D.o \
-	L3DEX.o \
-	L3DEX2.o \
-	S2DEX.o \
-	S2DEX2.o \
-	F3DPD.o \
-	F3DDKR.o \
-	F3DWRUS.o \
-	F3DCBFD.o
+# set mupen64plus core API header path
+ifneq ("$(APIDIR)","")
+  CFLAGS += "-I$(APIDIR)"
+else
+  TRYDIR = ../core/src/api
+  ifneq ("$(wildcard $(TRYDIR)/m64p_types.h)","")
+    CFLAGS += -I$(TRYDIR)
+  else
+    TRYDIR = /usr/local/include/mupen64plus
+    ifneq ("$(wildcard $(TRYDIR)/m64p_types.h)","")
+      CFLAGS += -I$(TRYDIR)
+    else
+      TRYDIR = /usr/include/mupen64plus
+      ifneq ("$(wildcard $(TRYDIR)/m64p_types.h)","")
+        CFLAGS += -I$(TRYDIR)
+      else
+        $(error Mupen64Plus API header files not found! Use makefile parameter APIDIR to force a location.)
+      endif
+    endif
+  endif
+endif
+
+# reduced compile output when running make without V=1
+ifneq ($(findstring $(MAKEFLAGS),s),s)
+ifndef V
+	Q_CC  = @echo '    CC  '$@;
+	Q_CXX = @echo '    CXX '$@;
+	Q_LD  = @echo '    LD  '$@;
+endif
+endif
+
+SRCDIR = src
+OBJDIR = _obj$(POSTFIX)
+
+# list of source files to compile
+SOURCE = \
+    $(SRCDIR)/2xSAI.cpp             \
+    $(SRCDIR)/3DMath.cpp            \
+    $(SRCDIR)/Config.cpp            \
+    $(SRCDIR)/CRC.cpp               \
+    $(SRCDIR)/DepthBuffer.cpp       \
+    $(SRCDIR)/F3D.cpp               \
+    $(SRCDIR)/F3DCBFD.cpp           \
+    $(SRCDIR)/F3DDKR.cpp            \
+    $(SRCDIR)/F3DEX.cpp             \
+    $(SRCDIR)/F3DEX2.cpp            \
+    $(SRCDIR)/F3DPD.cpp             \
+    $(SRCDIR)/F3DWRUS.cpp           \
+    $(SRCDIR)/FrameSkipper.cpp      \
+    $(SRCDIR)/GBI.cpp               \
+    $(SRCDIR)/gDP.cpp               \
+    $(SRCDIR)/gles2N64.cpp          \
+    $(SRCDIR)/gSP.cpp               \
+    $(SRCDIR)/L3D.cpp               \
+    $(SRCDIR)/L3DEX.cpp             \
+    $(SRCDIR)/L3DEX2.cpp            \
+    $(SRCDIR)/N64.cpp               \
+    $(SRCDIR)/OpenGL.cpp            \
+    $(SRCDIR)/RDP.cpp               \
+    $(SRCDIR)/RSP.cpp               \
+    $(SRCDIR)/S2DEX.cpp             \
+    $(SRCDIR)/S2DEX2.cpp            \
+    $(SRCDIR)/ShaderCombiner.cpp    \
+    $(SRCDIR)/Textures.cpp          \
+    $(SRCDIR)/ticks.c               \
+    $(SRCDIR)/VI.cpp                \
+
+# generate a list of object files build, make a temporary directory for them
+OBJECTS := $(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(filter %.c, $(SOURCE)))
+OBJDIRS = $(dir $(OBJECTS))
+$(shell $(MKDIR) $(OBJDIRS))
 
 # build targets
-all: gles2n64.$(SO_EXTENSION)
+TARGET = mupen64plus-video-gles2n64$(POSTFIX).$(SO_EXTENSION)
+
+all: $(TARGET)
+
+install: $(TARGET)
+	$(INSTALL) -d "$(DESTDIR)$(PLUGINDIR)"
+	$(INSTALL) -m 0644 $(INSTALL_STRIP_FLAG) $(TARGET) "$(DESTDIR)$(PLUGINDIR)"
+	$(INSTALL) -d "$(DESTDIR)$(SHAREDIR)"
 
 clean:
-	rm -f *.o *.s *.ii *.$(SO_EXTENSION) ui_gln64config.*
+	$(RM) -r $(OBJDIR) $(TARGET)
 
-# build rules
-.cpp.o:
-	$(CXX) -o $@ $(CFLAGS) -c $<
+# build dependency files
+CFLAGS += -MD
+-include $(OBJECTS:.o=.d)
 
-.c.o:
-	$(CXX) -o $@ $(CFLAGS) -c $<
+CXXFLAGS += $(CFLAGS)
 
-ui_gln64config.h: gln64config.ui
-	$(UIC) $< -o $@
+# standard build rules
+$(OBJDIR)/%.o: $(SRCDIR)/%.c
+	$(COMPILE.c) -o $@ $<
 
-gles2n64.$(SO_EXTENSION): $(OBJECTS)
-	$(CXX) $^ $(LDFLAGS) $(SDL_LIBS) $(LIBGL_LIBS) -o $@
+$(OBJDIR)/%.o: $(SRCDIR)/%.cpp
+	$(COMPILE.cc) -o $@ $<
 
-gles2n64.o: gles2N64.cpp
-	$(CXX) $(CFLAGS) $(SDL_FLAGS) -DMAINDEF -c -o $@ $<
+$(TARGET): $(OBJECTS)
+	$(LINK.o) $^ $(LOADLIBES) $(LDLIBS) -o $@
 
-Config_qt4.o: Config_qt4.cpp ui_gln64config.h
-	$(CXX) $(CFLAGS) $(SDL_FLAGS) -c -o $@ $<
-
-Config_gtk2.o: Config_gtk2.cpp
-	$(CXX) $(CFLAGS) $(SDL_FLAGS) -c -o $@ $<
-
-GBI.o: GBI.cpp
-	$(CXX) $(CFLAGS) $(SDL_FLAGS) -c -o $@ $<
+.PHONY: all clean install uninstall targets
 
