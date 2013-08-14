@@ -99,6 +99,14 @@ ifndef V
 endif
 endif
 
+# set base program pointers and flags
+CC        = $(CROSS_COMPILE)gcc
+RM       ?= rm -f
+INSTALL  ?= install
+MKDIR ?= mkdir -p
+COMPILE.c = $(Q_CC)$(CC) $(CFLAGS) $(CPPFLAGS) $(TARGET_ARCH) -c
+LINK.o = $(Q_LD)$(CC) $(CFLAGS) $(LDFLAGS) $(TARGET_ARCH)
+
 SRCDIR = src
 OBJDIR = _obj$(POSTFIX)
 
