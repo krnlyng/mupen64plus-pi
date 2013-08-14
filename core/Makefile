@@ -551,9 +551,9 @@ install: $(TARGET)
 	$(INSTALL) -d "$(DESTDIR)$(LIBDIR)"
 	$(INSTALL) -m 0644 $(INSTALL_STRIP_FLAG) $(TARGET) "$(DESTDIR)$(LIBDIR)"
 	$(INSTALL) -d "$(DESTDIR)$(SHAREDIR)"
-	$(INSTALL) -m 0644 ../../data/* "$(DESTDIR)$(SHAREDIR)"
+	$(INSTALL) -m 0644 data/* "$(DESTDIR)$(SHAREDIR)"
 	$(INSTALL) -d "$(DESTDIR)$(INCDIR)"
-	$(INSTALL) -m 0644 ../../src/api/m64p_*.h "$(DESTDIR)$(INCDIR)"
+	$(INSTALL) -m 0644 src/api/m64p_*.h "$(DESTDIR)$(INCDIR)"
 	-$(LDCONFIG) "$(DESTDIR)$(LIBDIR)"
 	if [ ! -e "$(DESTDIR)$(LIBDIR)/$(SONAME)" ]; then ln -sf "$(TARGET)" "$(DESTDIR)$(LIBDIR)/$(SONAME)"; fi
 
