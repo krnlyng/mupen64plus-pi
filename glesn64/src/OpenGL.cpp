@@ -32,7 +32,7 @@
 
 #include "FrameSkipper.h"
 
-#include "ae_bridge.h"
+//#include "ae_bridge.h"
 
 //// paulscode, function prototype missing from Yongzh's code
 void OGL_UpdateDepthUpdate();
@@ -150,10 +150,10 @@ void OGL_InitStates()
 */
     //// paulscode, added for different configurations based on hardware
     // (part of the missing shadows and stars bug fix)
-    int hardwareType = Android_JNI_GetHardwareType();
+/*    int hardwareType = Android_JNI_GetHardwareType();
     float f1, f2;
     Android_JNI_GetPolygonOffset(hardwareType, 1, &f1, &f2);
-    glPolygonOffset( f1, f2 );
+    glPolygonOffset( f1, f2 );*/
     ////
 
 // some other settings that have been tried, which do not work:
@@ -169,7 +169,7 @@ void OGL_InitStates()
     glViewport(config.framebuffer.xpos, config.framebuffer.ypos, config.framebuffer.width, config.framebuffer.height);
 
     //create default shader program
-    LOG( LOG_VERBOSE, "Generate Default Shader Program.\n" );
+    //LOG( LOG_VERBOSE, "Generate Default Shader Program.\n" );
 
     const char *src[1];
     src[0] = _default_fsh;
@@ -179,7 +179,7 @@ void OGL_InitStates()
     glGetShaderiv( OGL.defaultFragShader, GL_COMPILE_STATUS, &success );
     if (!success)
     {
-        LOG(LOG_ERROR, "Failed to produce default fragment shader.\n");
+        //LOG(LOG_ERROR, "Failed to produce default fragment shader.\n");
     }
 
     src[0] = _default_vsh;
@@ -189,7 +189,7 @@ void OGL_InitStates()
     glGetShaderiv( OGL.defaultVertShader, GL_COMPILE_STATUS, &success );
     if( !success )
     {
-        LOG( LOG_ERROR, "Failed to produce default vertex shader.\n" );
+        //LOG( LOG_ERROR, "Failed to produce default vertex shader.\n" );
         _glcompiler_error( OGL.defaultVertShader );
     }
 
@@ -202,7 +202,7 @@ void OGL_InitStates()
     glGetProgramiv( OGL.defaultProgram, GL_LINK_STATUS, &success );
     if( !success )
     {
-        LOG( LOG_ERROR, "Failed to link default program.\n" );
+        //LOG( LOG_ERROR, "Failed to link default program.\n" );
         _glcompiler_error( OGL.defaultFragShader );
     }
     glUniform1i( glGetUniformLocation( OGL.defaultProgram, "uTex" ), 0 );
@@ -238,10 +238,10 @@ void OGL_ResizeWindow(int x, int y, int width, int height)
 bool OGL_SDL_Start()
 {
     /* Initialize SDL */
-    LOG(LOG_MINIMAL, "Initializing SDL video subsystem...\n" );
+    //LOG(LOG_MINIMAL, "Initializing SDL video subsystem...\n" );
     if (SDL_InitSubSystem( SDL_INIT_VIDEO ) == -1)
     {
-         LOG(LOG_ERROR, "Error initializing SDL video subsystem: %s\n", SDL_GetError() );
+         //LOG(LOG_ERROR, "Error initializing SDL video subsystem: %s\n", SDL_GetError() );
         return FALSE;
     }
 
@@ -249,15 +249,15 @@ bool OGL_SDL_Start()
     int current_h = config.window.height;
 
     /* Set the video mode */
-    LOG(LOG_MINIMAL, "Setting video mode %dx%d...\n", current_w, current_h );
+    //LOG(LOG_MINIMAL, "Setting video mode %dx%d...\n", current_w, current_h );
 
 // TODO: I should actually check what the pixelformat is, rather than assuming 16 bpp (RGB_565) or 32 bpp (RGBA_8888):
 //// paulscode, added for switching between modes RGBA8888 and RGB565
 // (part of the color banding fix)
 int bitsPP;
-if( Android_JNI_UseRGBA8888() )
+/*if( Android_JNI_UseRGBA8888() )
     bitsPP = 32;
-else
+else*/
     bitsPP = 16;
 ////
 
@@ -265,7 +265,7 @@ else
     //       Better yet, eliminate all SDL calls by using the Mupen64Plus core api
     if (!(OGL.hScreen = SDL_SetVideoMode( current_w, current_h, bitsPP, SDL_HWSURFACE )))
     {
-        LOG(LOG_ERROR, "Problem setting videomode %dx%d: %s\n", current_w, current_h, SDL_GetError() );
+        //LOG(LOG_ERROR, "Problem setting videomode %dx%d: %s\n", current_w, current_h, SDL_GetError() );
         SDL_QuitSubSystem( SDL_INIT_VIDEO );
         return FALSE;
     }
@@ -324,7 +324,7 @@ bool OGL_Start()
     glClearColor( 0, 0, 0, 1 );
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     glFinish();
-    Android_JNI_SwapWindow();  // paulscode, fix for black-screen bug
+    //Android_JNI_SwapWindow();  // paulscode, fix for black-screen bug
     glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
     glFinish();
     OGL_UpdateDepthUpdate();
@@ -335,10 +335,10 @@ bool OGL_Start()
     //create framebuffer
     if (config.framebuffer.enable)
     {
-        LOG(LOG_VERBOSE, "Create offscreen framebuffer. \n");
+        //LOG(LOG_VERBOSE, "Create offscreen framebuffer. \n");
         if (config.framebuffer.width == config.window.width && config.framebuffer.height == config.window.height)
         {
-            LOG(LOG_WARNING, "There's no point in using a offscreen framebuffer when the window and screen dimensions are the same\n");
+            //LOG(LOG_WARNING, "There's no point in using a offscreen framebuffer when the window and screen dimensions are the same\n");
         }
 
         glGenFramebuffers(1, &OGL.framebuffer.fb);
@@ -356,7 +356,7 @@ bool OGL_Start()
 
         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE)
         {
-            LOG(LOG_ERROR, "Incomplete Framebuffer Object: ");
+            //LOG(LOG_ERROR, "Incomplete Framebuffer Object: ");
             switch(glCheckFramebufferStatus(GL_FRAMEBUFFER))
             {
                 case GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT:
@@ -374,7 +374,7 @@ bool OGL_Start()
     //check extensions
     if ((config.texture.maxAnisotropy>0) && !OGL_IsExtSupported("GL_EXT_texture_filter_anistropic"))
     {
-        LOG(LOG_WARNING, "Anistropic Filtering is not supported.\n");
+        //LOG(LOG_WARNING, "Anistropic Filtering is not supported.\n");
         config.texture.maxAnisotropy = 0;
     }
 
@@ -382,13 +382,13 @@ bool OGL_Start()
     glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, &f);
     if (config.texture.maxAnisotropy > ((int)f))
     {
-        LOG(LOG_WARNING, "Clamping max anistropy to %ix.\n", (int)f);
+        //LOG(LOG_WARNING, "Clamping max anistropy to %ix.\n", (int)f);
         config.texture.maxAnisotropy = (int)f;
     }
 
     //Print some info
-    LOG(LOG_VERBOSE, "Width: %i Height:%i \n", config.framebuffer.width, config.framebuffer.height);
-    LOG(LOG_VERBOSE, "[gles2n64]: Enable Runfast... \n");
+    //LOG(LOG_VERBOSE, "Width: %i Height:%i \n", config.framebuffer.width, config.framebuffer.height);
+    //LOG(LOG_VERBOSE, "[gles2n64]: Enable Runfast... \n");
 
     OGL_EnableRunfast();
     OGL_UpdateScale();
@@ -422,7 +422,7 @@ bool OGL_Start()
 
 void OGL_Stop()
 {
-    LOG(LOG_MINIMAL, "Stopping OpenGL\n");
+    //LOG(LOG_MINIMAL, "Stopping OpenGL\n");
 
 #ifdef USE_SDL
     SDL_QuitSubSystem( SDL_INIT_VIDEO );
@@ -785,7 +785,7 @@ void OGL_UpdateStates()
                     break;
 
                 default:
-                    LOG(LOG_VERBOSE, "Unhandled blend mode=%x", gDP.otherMode.l >> 16);
+                    //LOG(LOG_VERBOSE, "Unhandled blend mode=%x", gDP.otherMode.l >> 16);
                     glBlendFunc( GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA );
                     break;
             }
@@ -1197,28 +1197,28 @@ void OGL_SwapBuffers()
     {
 
         float fps = 1000.0f * (float) frames / (ticks - lastTicks);
-        LOG(LOG_MINIMAL, "fps = %.2f \n", fps);
-        LOG(LOG_MINIMAL, "skipped frame = %i of %i \n", OGL.frameSkipped, frames + OGL.frameSkipped);
+        //LOG(LOG_MINIMAL, "fps = %.2f \n", fps);
+        //LOG(LOG_MINIMAL, "skipped frame = %i of %i \n", OGL.frameSkipped, frames + OGL.frameSkipped);
 
         OGL.frameSkipped = 0;
 
 #ifdef BATCH_TEST
-        LOG(LOG_MINIMAL, "time spent in draw calls per frame = %.2f ms\n", (float)TotalDrawTime / frames);
-        LOG(LOG_MINIMAL, "average draw calls per frame = %.0f\n", (float)TotalDrawCalls / frames);
-        LOG(LOG_MINIMAL, "average vertices per draw call = %.2f\n", (float)TotalTriangles / TotalDrawCalls);
+        //LOG(LOG_MINIMAL, "time spent in draw calls per frame = %.2f ms\n", (float)TotalDrawTime / frames);
+        //LOG(LOG_MINIMAL, "average draw calls per frame = %.0f\n", (float)TotalDrawCalls / frames);
+        //LOG(LOG_MINIMAL, "average vertices per draw call = %.2f\n", (float)TotalTriangles / TotalDrawCalls);
         TotalDrawCalls = 0;
         TotalTriangles = 0;
         TotalDrawTime = 0;
 #endif
 
 #ifdef SHADER_TEST
-        LOG(LOG_MINIMAL, "average shader changes per frame = %f\n", (float)ProgramSwaps / frames);
+        //LOG(LOG_MINIMAL, "average shader changes per frame = %f\n", (float)ProgramSwaps / frames);
         ProgramSwaps = 0;
 #endif
 
 #ifdef TEXTURECACHE_TEST
-        LOG(LOG_MINIMAL, "texture cache time per frame: %.2f ms\n", (float)TextureCacheTime/ frames);
-        LOG(LOG_MINIMAL, "texture cache per frame: hits=%.2f misses=%.2f\n", (float)cache.hits / frames,
+        //LOG(LOG_MINIMAL, "texture cache time per frame: %.2f ms\n", (float)TextureCacheTime/ frames);
+        //LOG(LOG_MINIMAL, "texture cache per frame: hits=%.2f misses=%.2f\n", (float)cache.hits / frames,
                 (float)cache.misses / frames);
         cache.hits = cache.misses = 0;
         TextureCacheTime = 0;
@@ -1235,10 +1235,10 @@ void OGL_SwapBuffers()
     static u32 profileLastTicks = 0;
     if (profileTicks >= (profileLastTicks + 5000))
     {
-        LOG(LOG_MINIMAL, "GBI PROFILE DATA: %i ms \n", profileTicks - profileLastTicks);
-        LOG(LOG_MINIMAL, "=========================================================\n");
+        //LOG(LOG_MINIMAL, "GBI PROFILE DATA: %i ms \n", profileTicks - profileLastTicks);
+        //LOG(LOG_MINIMAL, "=========================================================\n");
         GBI_ProfilePrint(stdout);
-        LOG(LOG_MINIMAL, "=========================================================\n");
+        //LOG(LOG_MINIMAL, "=========================================================\n");
         GBI_ProfileReset();
         profileLastTicks = profileTicks;
     }
@@ -1282,7 +1282,7 @@ void OGL_SwapBuffers()
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (float*)vert + 2);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
+        //Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
 
         glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
         OGL_UpdateViewport();
@@ -1291,7 +1291,7 @@ void OGL_SwapBuffers()
     }
     else
     {
-        Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
+        //Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
     }
 
     // if emulator defined a render callback function, call it before

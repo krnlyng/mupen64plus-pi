@@ -613,7 +613,7 @@ void TextureCache_LoadBackground( CachedTexture *texInfo )
 
     if (texFormat.format == FORMAT_NONE)
     {
-        LOG(LOG_WARNING, "No Texture Conversion function available, size=%i format=%i\n", texInfo->size, texInfo->format);
+        //LOG(LOG_WARNING, "No Texture Conversion function available, size=%i format=%i\n", texInfo->size, texInfo->format);
     }
 
     switch(texFormat.format)
@@ -657,7 +657,7 @@ void TextureCache_LoadBackground( CachedTexture *texInfo )
 
     if (!dest || !swapped)
     {
-        LOG(LOG_ERROR, "Malloc failed!\n");
+        //LOG(LOG_ERROR, "Malloc failed!\n");
         return;
     }
 
@@ -689,7 +689,7 @@ void TextureCache_LoadBackground( CachedTexture *texInfo )
     }
     else
     {
-        LOG(LOG_VERBOSE, "Using 2xSAI Filter on Texture\n");
+        //LOG(LOG_VERBOSE, "Using 2xSAI Filter on Texture\n");
         texInfo->textureBytes <<= 2;
 
         scaledDest = (u32*) malloc( texInfo->textureBytes );
@@ -738,7 +738,7 @@ void TextureCache_Load( CachedTexture *texInfo )
 
     if (texFormat.format == FORMAT_NONE)
     {
-        LOG(LOG_WARNING, "No Texture Conversion function available, size=%i format=%i\n", texInfo->size, texInfo->format);
+        //LOG(LOG_WARNING, "No Texture Conversion function available, size=%i format=%i\n", texInfo->size, texInfo->format);
     }
 
     switch(texFormat.format)
@@ -779,7 +779,7 @@ void TextureCache_Load( CachedTexture *texInfo )
 
     if (!dest)
     {
-        LOG(LOG_ERROR, "Malloc failed!\n");
+        //LOG(LOG_ERROR, "Malloc failed!\n");
         return;
     }
 
@@ -863,7 +863,7 @@ void TextureCache_Load( CachedTexture *texInfo )
     }
     else
     {
-        LOG(LOG_VERBOSE, "Using 2xSAI Filter on Texture\n");
+        //LOG(LOG_VERBOSE, "Using 2xSAI Filter on Texture\n");
 
         texInfo->textureBytes <<= 2;
 
@@ -1246,7 +1246,7 @@ void TextureCache_Update( u32 t )
 
     if (cache.current[t] == NULL)
     {
-        LOG(LOG_ERROR, "Texture Cache Failure\n");
+        //LOG(LOG_ERROR, "Texture Cache Failure\n");
     }
 
     glBindTexture( GL_TEXTURE_2D, cache.current[t]->glName );

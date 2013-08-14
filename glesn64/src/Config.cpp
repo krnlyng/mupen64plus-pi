@@ -132,7 +132,7 @@ void Config_WriteConfig(const char *filename)
     FILE* f = fopen(filename, "w");
     if (!f)
     {
-        LOG(LOG_ERROR, "Could Not Open %s for writing\n", filename);
+        //LOG(LOG_ERROR, "Could Not Open %s for writing\n", filename);
     }
 
     for(int i=0; i<configOptionsSize; i++)
@@ -167,7 +167,7 @@ void Config_SetOption(char* line, char* val)
             {
                 int v = atoi(val);
                 *(o->data) = v;
-                LOG(LOG_VERBOSE, "Config Option: %s = %i\n", o->name, v);
+                //LOG(LOG_VERBOSE, "Config Option: %s = %i\n", o->name, v);
             }
             break;
         }
@@ -213,18 +213,18 @@ void Config_LoadRomConfig(unsigned char* header)
             config.romPAL = false;
     }
 
-    LOG(LOG_MINIMAL, "Rom is %s\n", config.romPAL ? "PAL" : "NTSC");
+    //LOG(LOG_MINIMAL, "Rom is %s\n", config.romPAL ? "PAL" : "NTSC");
 
     const char *filename = ConfigGetSharedDataFilepath("gles2n64rom.conf");
     FILE *f = fopen(filename,"r");
     if (!f)
     {
-        LOG(LOG_MINIMAL, "Could not find %s Rom settings file, using global.\n", filename);
+        //LOG(LOG_MINIMAL, "Could not find %s Rom settings file, using global.\n", filename);
         return;
     }
     else
     {
-        LOG(LOG_MINIMAL, "[gles2N64]: Searching %s Database for \"%s\" ROM\n", filename, config.romName);
+        //LOG(LOG_MINIMAL, "[gles2N64]: Searching %s Database for \"%s\" ROM\n", filename, config.romName);
         bool isRom = false;
         while (!feof(f))
         {
@@ -248,7 +248,7 @@ void Config_LoadRomConfig(unsigned char* header)
                     if (!val) continue;
                     *val++ = '\0';
                     Config_SetOption(line,val);
-                    LOG(LOG_MINIMAL, "%s = %s", line, val);
+                    //LOG(LOG_MINIMAL, "%s = %s", line, val);
                 }
             }
         }
@@ -270,13 +270,13 @@ void Config_LoadConfig()
     f = fopen(filename, "r");
     if (!f)
     {
-        LOG(LOG_MINIMAL, "[gles2N64]: Couldn't open config file '%s' for reading: %s\n", filename, strerror( errno ) );
-        LOG(LOG_MINIMAL, "[gles2N64]: Attempting to write new Config \n");
+        //LOG(LOG_MINIMAL, "[gles2N64]: Couldn't open config file '%s' for reading: %s\n", filename, strerror( errno ) );
+        //LOG(LOG_MINIMAL, "[gles2N64]: Attempting to write new Config \n");
         Config_WriteConfig(filename);
     }
     else
     {
-        LOG(LOG_MINIMAL, "[gles2n64]: Loading Config from %s \n", filename);
+        //LOG(LOG_MINIMAL, "[gles2n64]: Loading Config from %s \n", filename);
 
         while (!feof( f ))
         {
@@ -296,7 +296,7 @@ void Config_LoadConfig()
 
         if (config.version < CONFIG_VERSION)
         {
-            LOG(LOG_WARNING, "[gles2N64]: Wrong config version, rewriting config with defaults\n");
+            //LOG(LOG_WARNING, "[gles2N64]: Wrong config version, rewriting config with defaults\n");
             Config_SetDefault();
             Config_WriteConfig(filename);
         }

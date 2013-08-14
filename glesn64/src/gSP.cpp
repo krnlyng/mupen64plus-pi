@@ -122,17 +122,17 @@ u32 __indexmap_getnew(u32 index, u32 num)
                 ind = __indexmap_findunused(num);
                 if (ind > VERTBUFF_SIZE)
                 {
-                    LOG(LOG_ERROR, "Could not allocate %i indices\n", num);
+                    //LOG(LOG_ERROR, "Could not allocate %i indices\n", num);
 
-                    LOG(LOG_VERBOSE, "indexmap=[");
-                    for(int i=0;i<INDEXMAP_SIZE;i++)
-                        LOG(LOG_VERBOSE, "%i,", OGL.triangles.indexmap[i]);
-                    LOG(LOG_VERBOSE, "]\n");
+                    //LOG(LOG_VERBOSE, "indexmap=[");
+                    //for(int i=0;i<INDEXMAP_SIZE;i++)
+                        //LOG(LOG_VERBOSE, "%i,", OGL.triangles.indexmap[i]);
+                    //LOG(LOG_VERBOSE, "]\n");
 
-                    LOG(LOG_VERBOSE, "indexmapinv=[");
-                    for(int i=0;i<VERTBUFF_SIZE;i++)
-                        LOG(LOG_VERBOSE, "%i,", OGL.triangles.indexmapinv[i]);
-                    LOG(LOG_VERBOSE, "]\n");
+                    //LOG(LOG_VERBOSE, "indexmapinv=[");
+                    //for(int i=0;i<VERTBUFF_SIZE;i++)
+                        //LOG(LOG_VERBOSE, "%i,", OGL.triangles.indexmapinv[i]);
+                    //LOG(LOG_VERBOSE, "]\n");
                 }
                 return ind;
             }
@@ -576,7 +576,7 @@ void gSPLoadUcodeEx( u32 uc_start, u32 uc_dstart, u16 uc_dsize )
     }
     else
     {
-        LOG(LOG_WARNING, "Unknown Ucode\n");
+        //LOG(LOG_WARNING, "Unknown Ucode\n");
     }
 }
 
@@ -830,7 +830,7 @@ void gSPVertex( u32 v, u32 n, u32 v0 )
     }
     else
     {
-        LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
+        //LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
     }
 
 }
@@ -923,7 +923,7 @@ void gSPCIVertex( u32 v, u32 n, u32 v0 )
     }
     else
     {
-        LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
+        //LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
     }
 
 }
@@ -1015,7 +1015,7 @@ void gSPDMAVertex( u32 v, u32 n, u32 v0 )
     }
     else
     {
-        LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
+        //LOG(LOG_ERROR, "Using Vertex outside buffer v0=%i, n=%i\n", v0, n);
     }
 
 }

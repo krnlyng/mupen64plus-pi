@@ -254,42 +254,42 @@ void RDP_TexRect( u32 w0, u32 w1 )
 //Low Level RDP Drawing Commands:
 void RDP_TriFill(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_FILL Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_FILL Command\n");
 }
 
 void RDP_TriFillZBuff(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_FILL_ZBUFF Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_FILL_ZBUFF Command\n");
 }
 
 void RDP_TriTxtr(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_TXTR Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_TXTR Command\n");
 }
 
 void RDP_TriTxtrZBuff(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_TXTR_ZBUFF Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_TXTR_ZBUFF Command\n");
 }
 
 void RDP_TriShade(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_SHADE Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_SHADE Command\n");
 }
 
 void RDP_TriShadeZBuff(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_SHADE_ZBUFF Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_SHADE_ZBUFF Command\n");
 }
 
 void RDP_TriShadeTxtr(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_SHADE_TXTR Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_SHADE_TXTR Command\n");
 }
 
 void RDP_TriShadeTxtrZBuff(u32 w0, u32 w1)
 {
-    LOG(LOG_VERBOSE, "RSP_TRI_SHADE_TXTR_ZBUFF Command\n");
+    //LOG(LOG_VERBOSE, "RSP_TRI_SHADE_TXTR_ZBUFF Command\n");
 }
 
 void RDP_Init()

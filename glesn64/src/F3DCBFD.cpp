@@ -159,7 +159,7 @@ void F3DCBFD_Tri4(u32 w0, u32 w1)
 
 void F3DCBFD_Init()
 {
-    LOG(LOG_VERBOSE, "USING CBFD ucode!\n");
+    //LOG(LOG_VERBOSE, "USING CBFD ucode!\n");
 
     // Set GeometryMode flags
     GBI_InitFlags(F3DEX2);

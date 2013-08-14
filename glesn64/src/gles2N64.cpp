@@ -1,7 +1,7 @@
 
 #include <dlfcn.h>
 #include <string.h>
-#include <cpu-features.h>
+//#include <cpu-features.h>
 
 #include "m64p_types.h"
 #include "m64p_plugin.h"
@@ -20,7 +20,7 @@
 #include "FrameSkipper.h"
 #include "ticks.h"
 
-#include "ae_bridge.h"
+//#include "ae_bridge.h"
 
 ptr_ConfigGetSharedDataFilepath ConfigGetSharedDataFilepath = NULL;
 
