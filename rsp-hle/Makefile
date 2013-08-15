@@ -234,7 +234,7 @@ ifeq ($(PLUGINDIR),)
   PLUGINDIR := $(LIBDIR)/mupen64plus
 endif
 
-SRCDIR = .src
+SRCDIR = src
 OBJDIR = _obj$(POSTFIX)
 
 # list of source files to compile
