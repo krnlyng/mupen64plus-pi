@@ -38,7 +38,7 @@ CFLAGS += -I/opt/vc/include/
 CFLAGS += -I/opt/vc/include/interface/vcos/pthreads/
 
 CFLAGS += -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard
-CFLAGS +=  -D__CRC_OPT  -D__HASHMAP_OPT -D__TRIBUFFER_OPT -D__VEC4_OPT -DARM -DUSE_SDL -fsigned-char 
+CFLAGS +=  -D__CRC_OPT  -D__HASHMAP_OPT -D__VEC4_OPT -DARM -DUSE_SDL -fsigned-char 
 
 ifeq ($(OS), LINUX)
 CFLAGS += -Wall -D__LINUX__ -fPIC
