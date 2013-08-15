@@ -7,7 +7,7 @@
 
 #ifdef USE_SDL
 //    #include <EGL/egl.h>  // Android 2.3 only
-//    #include <GLES2/gl2extimg.h>
+    #include "gl2extimg.h"
     #include <SDL.h>
 #endif
 
