@@ -29,6 +29,7 @@ LDFLAGS =
 COMPILER_DIR = /usr
 SO_EXTENSION = so
 CXX =  $(COMPILER_DIR)/bin/g++
+
 LD =  $(COMPILER_DIR)/bin/g++
 INCLUDE = /usr/local/include
 CFLAGS  += -I$(INCLUDE)/libpng12
@@ -36,9 +37,10 @@ CFLAGS  += -I/usr/include/SDL/
 CFLAGS += -I$(INCLUDE)
 CFLAGS += -I/opt/vc/include/
 CFLAGS += -I/opt/vc/include/interface/vcos/pthreads/
+CFLAGS += -I/opt/vc/include/interface/vmcs_host/linux
 
 CFLAGS += -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard
-CFLAGS +=  -D__CRC_OPT -D_HASHMAP_OPT -D__TRIBUFFER_OPT -D__VEC4_OPT -DARM -DUSE_SDL 
+CFLAGS += -D__CRC_OPT -D__TRIBUFFER_OPT -D__VEC4_OPT -DARM -DUSE_SDL 
 
 ifeq ($(OS), LINUX)
 CFLAGS += -Wall -D__LINUX__ -fPIC
@@ -48,15 +50,11 @@ LDFLAGS += -lEGL -lGLESv2 -lSDL -lpng12 -lz
 LDFLAGS += -lX11 -lXau -lXdmcp -shared
 else
 CFLAGS += -Wall
-LDFLAGS += -lSDLmain -lSDL -lpng -lGLESv2
+LDFLAGS += -lSDLmain -lSDL -lpng -lGLESv2 -lEGL
 endif
 
 #CFLAGS += -DPROFILE_GBI
 #CFLAGS += -DSHADER_TEST
-
-# only export api symbols
-LDFLAGS += -Wl,-version-script,$(SRCDIR)/video_api_export.ver
-
 
 # set installation options
 ifeq ($(PREFIX),)
@@ -94,6 +92,9 @@ else
   endif
 endif
 
+# only export api symbols
+LDFLAGS += -Wl,-version-script,$(SRCDIR)/video_api_export.ver
+
 # reduced compile output when running make without V=1
 ifneq ($(findstring $(MAKEFLAGS),s),s)
 ifndef V
@@ -118,7 +119,6 @@ OBJDIR = _obj$(POSTFIX)
 # list of source files to compile
 SOURCE = \
     $(SRCDIR)/2xSAI.cpp             \
-    $(SRCDIR)/3DMath.cpp            \
     $(SRCDIR)/Config.cpp            \
     $(SRCDIR)/CRC.cpp               \
     $(SRCDIR)/DepthBuffer.cpp       \
@@ -129,11 +129,11 @@ SOURCE = \
     $(SRCDIR)/F3DEX2.cpp            \
     $(SRCDIR)/F3DPD.cpp             \
     $(SRCDIR)/F3DWRUS.cpp           \
-    $(SRCDIR)/FrameSkipper.cpp      \
     $(SRCDIR)/GBI.cpp               \
     $(SRCDIR)/gDP.cpp               \
     $(SRCDIR)/gles2N64.cpp          \
     $(SRCDIR)/gSP.cpp               \
+    $(SRCDIR)/gSPNeon.cpp           \
     $(SRCDIR)/L3D.cpp               \
     $(SRCDIR)/L3DEX.cpp             \
     $(SRCDIR)/L3DEX2.cpp            \
@@ -145,7 +145,6 @@ SOURCE = \
     $(SRCDIR)/S2DEX2.cpp            \
     $(SRCDIR)/ShaderCombiner.cpp    \
     $(SRCDIR)/Textures.cpp          \
-    $(SRCDIR)/ticks.c               \
     $(SRCDIR)/VI.cpp                \
 
 # generate a list of object files build, make a temporary directory for them
@@ -155,7 +154,7 @@ OBJDIRS = $(dir $(OBJECTS))
 $(shell $(MKDIR) $(OBJDIRS))
 
 # build targets
-TARGET = mupen64plus-video-gles2n64$(POSTFIX).$(SO_EXTENSION)
+TARGET = mupen64plus-video-gles2n64-pi$(POSTFIX).$(SO_EXTENSION)
 
 all: $(TARGET)
 

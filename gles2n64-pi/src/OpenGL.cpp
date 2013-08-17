@@ -4,19 +4,26 @@
 #include <math.h>
 #include <string.h>
 #include <time.h>
+#include <png.h>
+#include <X11/Xlib.h>
+#include <X11/Xatom.h>
+#include <X11/Xutil.h>
 #include <unistd.h>
 
-//// paulscode, added for SDL linkage:
-#ifdef USE_SDL
-    #include <SDL.h>
-     // TODO: Remove this bandaid for SDL 2.0 compatibility (needed for SDL_SetVideoMode)
-    #if SDL_VERSION_ATLEAST(2,0,0)
-    #include "sdl2_compat.h" // Slightly hacked version of core/vidext_sdl2_compat.h
-    #endif
-#endif
-////
+#include "bcm_host.h"
+
+#include "GLES/gl.h"
+#include "EGL/egl.h"
+#include "EGL/eglext.h"
+
+#include <SDL.h>
+#include <SDL/SDL_syswm.h>
+
+
+#define timeGetTime() time(NULL)
 
 #include "Common.h"
+#include "winlnxdefs.h"
 #include "gles2N64.h"
 #include "OpenGL.h"
 #include "Types.h"
@@ -28,15 +35,12 @@
 #include "VI.h"
 #include "RSP.h"
 #include "Config.h"
-#include "ticks.h"
 
-#include "FrameSkipper.h"
+//#define BATCH_TEST
+//#define TEXTURECACHE_TEST
+//#define RENDERSTATE_TEST
+//#define SHADER_TEST
 
-//#include "ae_bridge.h"
-
-//// paulscode, function prototype missing from Yongzh's code
-void OGL_UpdateDepthUpdate();
-////
 
 #ifdef TEXTURECACHE_TEST
 int     TextureCacheTime = 0;
@@ -56,9 +60,9 @@ int     TotalDrawTime = 0;
 int     TotalTriangles = 0;
 int     TotalDrawCalls = 0;
 #define glDrawElements(A,B,C,D) \
-    TotalTriangles += B; TotalDrawCalls++; int t = ticksGetTicks(); glDrawElements(A,B,C,D); TotalDrawTime += (ticksGetTicks() - t);
+    TotalTriangles += B; TotalDrawCalls++; int t = SDL_GetTicks(); glDrawElements(A,B,C,D); TotalDrawTime += (SDL_GetTicks() - t);
 #define glDrawArrays(A,B,C) \
-    TotalTriangles += C; TotalDrawCalls++; int t = ticksGetTicks(); glDrawArrays(A,B,C); TotalDrawTime += (ticksGetTicks() - t);
+    TotalTriangles += C; TotalDrawCalls++; int t = SDL_GetTicks(); glDrawArrays(A,B,C); TotalDrawTime += (SDL_GetTicks() - t);
 
 #endif
 
@@ -80,9 +84,26 @@ const char _default_fsh[] = "                           \n\t" \
 "gl_FragColor = texture2D(uTex, vTexCoord);             \n\t" \
 "}                                                      \n\t";
 
+const EGLint ConfigAttribs[] =
+{
+	EGL_LEVEL,				0,
+	EGL_DEPTH_SIZE,         16,
+	EGL_STENCIL_SIZE,       0,
+	EGL_SURFACE_TYPE,		EGL_WINDOW_BIT,
+	EGL_RENDERABLE_TYPE,	EGL_OPENGL_ES2_BIT,
+	EGL_NATIVE_RENDERABLE,	EGL_FALSE,
+	EGL_NONE
+};
+
+const EGLint ContextAttribs[] =
+{
+	EGL_CONTEXT_CLIENT_VERSION, 	2,
+	EGL_NONE
+};
+
 void OGL_EnableRunfast()
 {
-#ifdef ARM_ASM
+#ifdef __arm__
 	static const unsigned int x = 0x04086060;
 	static const unsigned int y = 0x03000000;
 	int r;
@@ -96,6 +117,28 @@ void OGL_EnableRunfast()
 	);
 #endif
 }
+
+const char* EGLErrorString()
+{
+	EGLint nErr = eglGetError();
+	switch(nErr){
+		case EGL_SUCCESS: 				return "EGL_SUCCESS";
+		case EGL_BAD_DISPLAY:			return "EGL_BAD_DISPLAY";
+		case EGL_NOT_INITIALIZED:		return "EGL_NOT_INITIALIZED";
+		case EGL_BAD_ACCESS:			return "EGL_BAD_ACCESS";
+		case EGL_BAD_ALLOC:				return "EGL_BAD_ALLOC";
+		case EGL_BAD_ATTRIBUTE:			return "EGL_BAD_ATTRIBUTE";
+		case EGL_BAD_CONFIG:			return "EGL_BAD_CONFIG";
+		case EGL_BAD_CONTEXT:			return "EGL_BAD_CONTEXT";
+		case EGL_BAD_CURRENT_SURFACE:	return "EGL_BAD_CURRENT_SURFACE";
+		case EGL_BAD_MATCH:				return "EGL_BAD_MATCH";
+		case EGL_BAD_NATIVE_PIXMAP:		return "EGL_BAD_NATIVE_PIXMAP";
+		case EGL_BAD_NATIVE_WINDOW:		return "EGL_BAD_NATIVE_WINDOW";
+		case EGL_BAD_PARAMETER:			return "EGL_BAD_PARAMETER";
+		case EGL_BAD_SURFACE:			return "EGL_BAD_SURFACE";
+		default:						return "unknown";
+	}
+};
 
 int OGL_IsExtSupported( const char *extension )
 {
@@ -135,79 +178,58 @@ void OGL_InitStates()
 {
     GLint   success;
 
-    glEnable( GL_CULL_FACE );
-    glEnableVertexAttribArray( SC_POSITION );
-    glEnable( GL_DEPTH_TEST );
-    glDepthFunc( GL_ALWAYS );
-    glDepthMask( GL_FALSE );
-    glEnable( GL_SCISSOR_TEST );
-
-///// paulscode, fixes missing graphics on Qualcomm, Adreno:
-    glDepthRangef(0.0f, 1.0f);
-/*
-    // default values (only seem to work on OMAP!)
-    glPolygonOffset(0.2f, 0.2f);
-*/
-    //// paulscode, added for different configurations based on hardware
-    // (part of the missing shadows and stars bug fix)
-/*    int hardwareType = Android_JNI_GetHardwareType();
-    float f1, f2;
-    Android_JNI_GetPolygonOffset(hardwareType, 1, &f1, &f2);
-    glPolygonOffset( f1, f2 );*/
-    ////
-
-// some other settings that have been tried, which do not work:
-    //glDepthRangef(1.0f, 0.0f);  // reverses depth-order on OMAP3 chipsets
+    glEnable(GL_CULL_FACE);
+    glEnableVertexAttribArray(SC_POSITION);
+    glEnable(GL_DEPTH_TEST);
+    glDepthFunc(GL_ALWAYS);
+    glDepthMask(GL_FALSE);
+    glEnable(GL_SCISSOR_TEST);
+    //glDepthRangef(1.0f, 0.0f);
     //glPolygonOffset(-0.2f, -0.2f);
-    //glDepthRangef( 0.09f, (float)0x7FFF );  // should work, but not on Adreno
-    //glPolygonOffset( -0.2f, 0.2f );
-    //glDepthRangef(0.0f, (float)0x7FFF);  // what Yongzh used, broken on Adreno
-    //glPolygonOffset(0.2f, 0.2f);
-/////
-    
-
+    glDepthRangef(0.0f, (float)0x7FFF);
+    glPolygonOffset(0.2f, 0.2f);
     glViewport(config.framebuffer.xpos, config.framebuffer.ypos, config.framebuffer.width, config.framebuffer.height);
 
     //create default shader program
-    LOG( LOG_VERBOSE, "Generate Default Shader Program.\n" );
+    LOG(LOG_MINIMAL, "Generate Default Shader Program.\n");
 
     const char *src[1];
     src[0] = _default_fsh;
-    OGL.defaultFragShader = glCreateShader( GL_FRAGMENT_SHADER );
-    glShaderSource( OGL.defaultFragShader, 1, (const char**) src, NULL );
-    glCompileShader( OGL.defaultFragShader );
-    glGetShaderiv( OGL.defaultFragShader, GL_COMPILE_STATUS, &success );
+    OGL.defaultFragShader = glCreateShader(GL_FRAGMENT_SHADER);
+    glShaderSource(OGL.defaultFragShader, 1, (const char**) src, NULL);
+    glCompileShader(OGL.defaultFragShader);
+    glGetShaderiv(OGL.defaultFragShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
         LOG(LOG_ERROR, "Failed to produce default fragment shader.\n");
     }
 
     src[0] = _default_vsh;
-    OGL.defaultVertShader = glCreateShader( GL_VERTEX_SHADER );
-    glShaderSource( OGL.defaultVertShader, 1, (const char**) src, NULL );
-    glCompileShader( OGL.defaultVertShader );
-    glGetShaderiv( OGL.defaultVertShader, GL_COMPILE_STATUS, &success );
-    if( !success )
+    OGL.defaultVertShader = glCreateShader(GL_VERTEX_SHADER);
+    glShaderSource(OGL.defaultVertShader, 1, (const char**) src, NULL);
+    glCompileShader(OGL.defaultVertShader);
+    glGetShaderiv(OGL.defaultVertShader, GL_COMPILE_STATUS, &success);
+    if (!success)
     {
-        LOG( LOG_ERROR, "Failed to produce default vertex shader.\n" );
-        _glcompiler_error( OGL.defaultVertShader );
+        LOG(LOG_ERROR, "Failed to produce default vertex shader.\n");
+        _glcompiler_error(OGL.defaultVertShader);
     }
 
     OGL.defaultProgram = glCreateProgram();
-    glBindAttribLocation( OGL.defaultProgram, 0, "aPosition" );
-    glBindAttribLocation( OGL.defaultProgram, 1, "aTexCoord" );
-    glAttachShader( OGL.defaultProgram, OGL.defaultFragShader );
-    glAttachShader( OGL.defaultProgram, OGL.defaultVertShader );
-    glLinkProgram( OGL.defaultProgram );
-    glGetProgramiv( OGL.defaultProgram, GL_LINK_STATUS, &success );
-    if( !success )
+    glBindAttribLocation(OGL.defaultProgram, 0, "aPosition");
+    glBindAttribLocation(OGL.defaultProgram, 1, "aTexCoord");
+    glAttachShader(OGL.defaultProgram, OGL.defaultFragShader);
+    glAttachShader(OGL.defaultProgram, OGL.defaultVertShader);
+    glLinkProgram(OGL.defaultProgram);
+    glGetProgramiv(OGL.defaultProgram, GL_LINK_STATUS, &success);
+    if (!success)
     {
-        LOG( LOG_ERROR, "Failed to link default program.\n" );
-        _glcompiler_error( OGL.defaultFragShader );
+        LOG(LOG_ERROR, "Failed to link default program.\n");
+        _glcompiler_error(OGL.defaultFragShader);
     }
-    glUniform1i( glGetUniformLocation( OGL.defaultProgram, "uTex" ), 0 );
-    glUseProgram( OGL.defaultProgram );
-
+    glUniform1i(glGetUniformLocation(OGL.defaultProgram, "uTex"), 0);
+    glUseProgram(OGL.defaultProgram);
+    LOG(LOG_MINIMAL, "shader creation done.\n");
 }
 
 void OGL_UpdateScale()
@@ -216,129 +238,275 @@ void OGL_UpdateScale()
     OGL.scaleY = (float)config.framebuffer.height / (float)VI.height;
 }
 
-void OGL_ResizeWindow(int x, int y, int width, int height)
+void OGL_ResizeWindow()
 {
-    config.window.xpos = x;
-    config.window.ypos = y;
-    config.window.width = width;
-    config.window.height = height;
-
-    config.framebuffer.xpos = x;
-    config.framebuffer.ypos = y;
-    config.framebuffer.width = width;
-    config.framebuffer.height = height;
-    OGL_UpdateScale();
-
-    glViewport(config.framebuffer.xpos, config.framebuffer.ypos,
-            config.framebuffer.width, config.framebuffer.height);
+    //hmmm
 }
 
-////// paulscode, added for SDL linkage
-#ifdef USE_SDL
+#if defined(SDL_WINDOW)
 bool OGL_SDL_Start()
 {
+    const SDL_VideoInfo *videoInfo;
+
     /* Initialize SDL */
-    LOG(LOG_MINIMAL, "Initializing SDL video subsystem...\n" );
+    LOG(LOG_VERBOSE, "Initializing SDL video subsystem...\n" );
     if (SDL_InitSubSystem( SDL_INIT_VIDEO ) == -1)
     {
-         LOG(LOG_ERROR, "Error initializing SDL video subsystem: %s\n", SDL_GetError() );
+        printf( "Error initializing SDL video subsystem: %s\n", SDL_GetError() );
         return FALSE;
     }
 
-    #if SDL_VERSION_ATLEAST(2,0,0)
-    LOG(LOG_MINIMAL, "SDL Version is at least 2.0" );
-    #endif
-
-    int current_w = config.window.width;
-    int current_h = config.window.height;
-
-    /* Set the video mode */
-    LOG(LOG_MINIMAL, "Setting video mode %dx%d...\n", current_w, current_h );
-
-  const SDL_VideoInfo* videoInfo = SDL_GetVideoInfo ();
-
-  int systemX = videoInfo->current_w ;
-  int systemY = videoInfo->current_h ;
-  Uint8 bitsPP = videoInfo->vfmt->BitsPerPixel ;
-
-    // TODO: Replace SDL_SetVideoMode with something that is SDL 2.0 compatible
-    //       Better yet, eliminate all SDL calls by using the Mupen64Plus core api
-    if (!(OGL.hScreen = SDL_SetVideoMode( current_w, current_h, bitsPP, SDL_DOUBLEBUF | SDL_HWSURFACE)))
+    /* Video Info */
+    LOG(LOG_VERBOSE,"Getting video info...\n" );
+    if (!(videoInfo = SDL_GetVideoInfo()))
     {
-        LOG(LOG_ERROR, "Problem setting videomode %dx%d: %s\n", current_w, current_h, SDL_GetError() );
+        LOG(LOG_VERBOSE,"Video query failed: %s\n", SDL_GetError() );
         SDL_QuitSubSystem( SDL_INIT_VIDEO );
         return FALSE;
     }
+    /* Set the video mode */
+    LOG(LOG_VERBOSE, "Setting video mode %dx%d...\n", (int)OGL.winWidth, (int)OGL.winHeight );
+    if (!(OGL.hScreen = SDL_SetVideoMode( OGL.winWidth, OGL.winHeight - 32, 16, SDL_SWSURFACE )))
+    {
+        LOG(LOG_ERROR, "Problem setting videomode %dx%d: %s\n", (int)OGL.winWidth, (int)OGL.winHeight, SDL_GetError() );
+        SDL_QuitSubSystem( SDL_INIT_VIDEO );
+        return FALSE;
+    }
+    SDL_WM_SetCaption( pluginName, pluginName );
 
-    SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+	SDL_SysWMinfo info;
+	SDL_VERSION(&info.version);
+	SDL_GetWMInfo(&info);
+	OGL.EGL.handle = (EGLNativeWindowType) info.window;
+	OGL.EGL.device = GetDC(OGL.EGL.handle);
 
-//// paulscode, fixes the screen-size problem
-    const float ratio = ( config.romPAL ? 9.0f/11.0f : 0.75f );
-    int videoWidth = current_w;
-    int videoHeight = current_h;
-    int x = 0;
-    int y = 0;
-    
-    //re-scale width and height on per-rom basis
-    float width = (float)videoWidth * (float)config.window.refwidth / 800.f;
-    float height = (float)videoHeight * (float)config.window.refheight / 480.f;
-    
-    //re-center video if it was re-scaled per-rom
-    x -= (width - (float)videoWidth) / 2.f;
-    y -= (height - (float)videoHeight) / 2.f;
-    
-    //set xpos and ypos
-    config.window.xpos = x;
-    config.window.ypos = y;
-    config.framebuffer.xpos = x;
-    config.framebuffer.ypos = y;
-    
-    //set width and height
-    config.window.width = (int)width;
-    config.window.height = (int)height;
-    config.framebuffer.width = (int)width;
-    config.framebuffer.height = (int)height;
-////
-    return true;
+	return true;
 }
 #endif
-//////
 
+bool OGL_X11_Start()
+{
+	LOG(LOG_MINIMAL, "Starting X11 Window\n");
+
+	Window window;
+	Display *display;
+	XEvent event;
+    Atom atomdelete, atomhint;
+	XWindowAttributes attributes;
+
+	display = XOpenDisplay(NULL);
+    if (!display) {
+        LOG(LOG_ERROR, "Cannot connect to X server\n");
+		return false;
+    }
+
+    //get dimensions of framebuffer / window
+	int x, y, w, h;
+    if (config.window.centre){
+        config.window.xpos = (config.screen.width - config.window.width) / 2;
+        config.window.ypos = (config.screen.height - config.window.height) / 2;
+    }
+
+    if (config.window.fullscreen){
+        x = 0;
+        y = 0;
+        w = config.screen.width;
+        h = config.screen.height;
+    } else {
+        x = 0;
+        y = 0;
+        w = config.window.width;
+        h = config.window.height;
+        config.window.xpos = 0;
+        config.window.ypos = 0;
+    }
+
+    if (config.framebuffer.enable){
+        config.framebuffer.xpos = 0;
+
+
+        config.framebuffer.ypos = 0;
+    } else {
+        if (config.window.fullscreen) {
+            config.framebuffer.xpos = (config.screen.width - config.window.width) / 2;
+            config.framebuffer.ypos = (config.screen.height - config.window.height) / 2;
+        } else {
+            config.framebuffer.xpos = 0;
+            config.framebuffer.ypos = 0;
+        }
+
+        config.framebuffer.width = config.window.width;
+        config.framebuffer.height= config.window.height;
+    }
+
+    //create window
+    int black = BlackPixel(display, DefaultScreen(display));
+	window = XCreateSimpleWindow(display, DefaultRootWindow(display), x, y, w, h, 0, black, black);
+	if (!window){
+        LOG(LOG_ERROR, "Failed to create X window\n");
+		return false;
+    }
+
+	//make fullscreen window
+	if (config.window.fullscreen){
+		struct {
+			unsigned long   flags;
+			unsigned long   functions;
+			unsigned long   decorations;
+			long            inputMode;
+			unsigned long   status;
+		} hints;
+
+		hints.flags = 2;
+		hints.decorations = 0;
+		atomhint = XInternAtom(display, "_MOTIF_WM_HINTS", False);
+		XChangeProperty(display, window, atomhint, atomhint, 32, PropModeReplace, (unsigned char *) &hints,5);
+        XDefineCursor(display, window, None);
+	}
+
+
+	//set name and show window
+    XStoreName (display, window, "gles2n64" );
+	XMapWindow(display, window);
+	XFlush(display);
+
+    OGL.EGL.device = (EGLNativeDisplayType) display;
+	OGL.EGL.handle = (void*) window;
+
+	return true;
+}
+
+int oneshot_hack = 0;
 
 bool OGL_Start()
 {
-// paulscode, initialize SDL
-#ifdef USE_SDL
-    if (!OGL_SDL_Start())
-        return false;
-#endif
-//
+
+
+	if(oneshot_hack == 0){
+		oneshot_hack = 1;
+	}else{
+		return TRUE;
+	}
+
+	bcm_host_init();
+
+	uint32_t screen_width;
+    uint32_t screen_height;
+
+    GLint   success;
+
+    EGLBoolean result;
+	EGLint num_config;
+
+	static EGL_DISPMANX_WINDOW_T nativewindow;
+
+	DISPMANX_ELEMENT_HANDLE_T dispman_element;
+	DISPMANX_DISPLAY_HANDLE_T dispman_display;
+	DISPMANX_UPDATE_HANDLE_T dispman_update;
+	VC_RECT_T dst_rect;
+	VC_RECT_T src_rect;
+
+	static const EGLint attribute_list[] =
+	{
+	    EGL_RED_SIZE, 8,
+	      EGL_GREEN_SIZE, 8,
+	      EGL_BLUE_SIZE, 8,
+	      EGL_ALPHA_SIZE, 8,
+	      EGL_SURFACE_TYPE, EGL_WINDOW_BIT,
+	      EGL_NONE
+	};
+	   
+	 // get an EGL display connection
+   OGL.EGL.display = eglGetDisplay(EGL_DEFAULT_DISPLAY);
+   if (OGL.EGL.display == EGL_NO_DISPLAY){
+        LOG(LOG_ERROR, "EGL Display Get failed: %s \n", EGLErrorString());
+        return FALSE;
+   }
+
+   // initialize the EGL display connection
+   if (!eglInitialize(OGL.EGL.display, NULL, NULL)){
+        LOG(LOG_ERROR, "EGL Display Initialize failed: %s \n", EGLErrorString());
+        return FALSE;
+    }
+
+   // get an appropriate EGL frame buffer configuration
+   if (!eglChooseConfig(OGL.EGL.display, attribute_list, &OGL.EGL.config, 1, &num_config)){
+        LOG(LOG_ERROR, "EGL Configuration failed: %s \n", EGLErrorString());
+        return FALSE;
+    }
+
+
+   //eglBindAPI(EGL_OPENGL_ES_API);
+
+   OGL.EGL.context = eglCreateContext(OGL.EGL.display, OGL.EGL.config, EGL_NO_CONTEXT, NULL);
+   if (OGL.EGL.context == EGL_NO_CONTEXT){
+        LOG(LOG_ERROR, "EGL Context Creation failed: %s \n", EGLErrorString());
+        return FALSE;
+   }
+
+   // create an EGL window surface
+   success = graphics_get_display_size(0 /* LCD */, &screen_width, &screen_height);
+   if (success < 0){
+        LOG(LOG_ERROR, "graphics_get_display_size failed: %d \n", success);
+        return FALSE;
+   }
+
+   dst_rect.x = 0;
+   dst_rect.y = 0;
+   dst_rect.width = screen_width;
+   dst_rect.height = screen_height;
+      
+   src_rect.x = 0;
+   src_rect.y = 0;
+   src_rect.width = screen_width << 16;
+   src_rect.height = screen_height << 16;        
+
+   dispman_display = vc_dispmanx_display_open( 0 /* LCD */);
+   dispman_update = vc_dispmanx_update_start( 0 );
+         
+   dispman_element = vc_dispmanx_element_add ( dispman_update, dispman_display,
+      0/*layer*/, &dst_rect, 0/*src*/,
+      &src_rect, DISPMANX_PROTECTION_NONE, 0 /*alpha*/, 0/*clamp*/, (DISPMANX_TRANSFORM_T)0/*transform*/);
+      
+   nativewindow.element = dispman_element;
+   nativewindow.width = screen_width;
+   nativewindow.height = screen_height;
+   vc_dispmanx_update_submit_sync( dispman_update );
+      
+   OGL.EGL.surface = eglCreateWindowSurface( OGL.EGL.display, OGL.EGL.config, &nativewindow, NULL );
+   if (OGL.EGL.surface == EGL_NO_SURFACE){
+        LOG(LOG_ERROR, "EGL surface Creation failed: %s \n", EGLErrorString());
+        return FALSE;
+   }
+
+
+   // connect the context to the surface
+   if (!eglMakeCurrent(OGL.EGL.display, OGL.EGL.surface, OGL.EGL.surface, OGL.EGL.context)){
+        LOG(LOG_ERROR, "EGL Make Current failed: %s \n", EGLErrorString());
+        return FALSE;
+    };   
+
+/////////////////////////
+
+    //eglSwapInterval(OGL.EGL.display, config.verticalSync);
 
     OGL_InitStates();
 
-#ifdef USE_SDL
-/////// paulscode, graphics bug-fixes
-    float depth = gDP.fillColor.z ;
-    glDisable( GL_SCISSOR_TEST );
-    glDepthMask( GL_TRUE );  // fixes side-bar graphics glitches
-//    glClearDepthf( depth );  // broken on Qualcomm Adreno
-    glClearDepthf( 1.0f );  // fixes missing graphics on Qualcomm Adreno
-    glClearColor( 0, 0, 0, 1 );
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    //clear back buffer:
+    glViewport(0, 0, screen_width, screen_height);
+    glClearDepthf(0.0);
+    glClearColor(0,0,0,0);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
-    SDL_GL_SwapBuffers();  // paulscode, fix for black-screen bug
-    glClear( GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT );
+    eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
-    OGL_UpdateDepthUpdate();
-    glEnable( GL_SCISSOR_TEST );
-////////
-#endif
 
-    //create framebuffer
+        //create framebuffer
     if (config.framebuffer.enable)
     {
         LOG(LOG_VERBOSE, "Create offscreen framebuffer. \n");
-        if (config.framebuffer.width == config.window.width && config.framebuffer.height == config.window.height)
+        if (1==1)
         {
             LOG(LOG_WARNING, "There's no point in using a offscreen framebuffer when the window and screen dimensions are the same\n");
         }
@@ -347,12 +515,12 @@ bool OGL_Start()
         glGenRenderbuffers(1, &OGL.framebuffer.depth_buffer);
         glGenTextures(1, &OGL.framebuffer.color_buffer);
         glBindRenderbuffer(GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
-        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24_OES, config.framebuffer.width, config.framebuffer.height);
+        glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT24_OES, screen_width, screen_height);
         glBindTexture(GL_TEXTURE_2D, OGL.framebuffer.color_buffer);
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, config.framebuffer.width, config.framebuffer.height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, screen_width, screen_height, 0, GL_RGB, GL_UNSIGNED_SHORT_5_6_5, NULL);
         glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, OGL.framebuffer.color_buffer, 0);
-        glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
+        //glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, OGL.framebuffer.color_buffer, 0);
+        //glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, OGL.framebuffer.depth_buffer);
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -367,11 +535,15 @@ bool OGL_Start()
                     printf("Framebuffer Unsupported. \n"); break;
                 case GL_FRAMEBUFFER_INCOMPLETE_DIMENSIONS:
                     printf("Incomplete Dimensions. \n"); break;
+                /* tin0scode: not found/needed 
+        /case GL_FRAMEBUFFER_INCOMPLETE_FORMATS:
+                    printf("Incomplete Formats. \n"); break;*/
             }
             config.framebuffer.enable = 0;
             glBindFramebuffer(GL_FRAMEBUFFER, 0);
         }
     }
+
 
     //check extensions
     if ((config.texture.maxAnisotropy>0) && !OGL_IsExtSupported("GL_EXT_texture_filter_anistropic"))
@@ -389,8 +561,13 @@ bool OGL_Start()
     }
 
     //Print some info
-    LOG(LOG_VERBOSE, "Width: %i Height:%i \n", config.framebuffer.width, config.framebuffer.height);
-    LOG(LOG_VERBOSE, "[gles2n64]: Enable Runfast... \n");
+    EGLint attrib;
+    LOG(LOG_MINIMAL, "Width: %i Height:%i \n", screen_width, screen_height);
+    //eglGetConfigAttrib(OGL.EGL.display, OGL.EGL.config, EGL_DEPTH_SIZE, &attrib);
+    LOG(LOG_MINIMAL, "[gles2n64]: Depth Size: %i \n", attrib);
+    //eglGetConfigAttrib(OGL.EGL.display, OGL.EGL.config, EGL_BUFFER_SIZE, &attrib);
+    LOG(LOG_MINIMAL, "[gles2n64]: Color Buffer Size: %i \n", attrib);
+    LOG(LOG_MINIMAL, "[gles2n64]: Enable Runfast... \n");
 
     OGL_EnableRunfast();
     OGL_UpdateScale();
@@ -413,11 +590,13 @@ bool OGL_Start()
     OGL.frameSkipped = 0;
     for(int i = 0; i < OGL_FRAMETIME_NUM; i++) OGL.frameTime[i] = 0;
 
-    OGL.renderingToTexture = false;
+    OGL.renderingToTexture = true;
     OGL.renderState = RS_NONE;
     gSP.changed = gDP.changed = 0xFFFFFFFF;
     VI.displayNum = 0;
     glGetError();
+
+    printf("RPIDBG: out of OGL_Start\n");
 
     return TRUE;
 }
@@ -426,7 +605,7 @@ void OGL_Stop()
 {
     LOG(LOG_MINIMAL, "Stopping OpenGL\n");
 
-#ifdef USE_SDL
+#ifdef WIN32
     SDL_QuitSubSystem( SDL_INIT_VIDEO );
 #endif
 
@@ -443,6 +622,18 @@ void OGL_Stop()
 
     ShaderCombiner_Destroy();
     TextureCache_Destroy();
+
+#ifdef X11_WINDOW
+    if (config.window.enableX11)
+        XDestroyWindow((Display*) OGL.EGL.display, (Window) OGL.EGL.handle);
+    else
+        system("sudo /etc/init.d/slim-init start");
+#endif
+
+	eglMakeCurrent(OGL.EGL.display, EGL_NO_SURFACE, EGL_NO_SURFACE, EGL_NO_CONTEXT);
+	eglDestroySurface(OGL.EGL.display, OGL.EGL.surface);
+ 	eglDestroyContext(OGL.EGL.display, OGL.EGL.context);
+   	eglTerminate(OGL.EGL.display);
 }
 
 void OGL_UpdateCullFace()
@@ -703,9 +894,9 @@ void OGL_UpdateStates()
             if (scProgramCurrent->usesT0)
             {
 #ifdef TEXTURECACHE_TEST
-                unsigned t = ticksGetTicks();
+                unsigned t = SDL_GetTicks();
                 TextureCache_Update(0);
-                TextureCacheTime += (ticksGetTicks() - t);
+                TextureCacheTime += (SDL_GetTicks() - t);
 #else
                 TextureCache_Update(0);
 #endif
@@ -721,9 +912,9 @@ void OGL_UpdateStates()
             if (scProgramCurrent->usesT1)
             {
 #ifdef TEXTURECACHE_TEST
-                unsigned t = ticksGetTicks();
+                unsigned t = SDL_GetTicks();
                 TextureCache_Update(1);
-                TextureCacheTime += (ticksGetTicks() - t);
+                TextureCacheTime += (SDL_GetTicks() - t);
 #else
                 TextureCache_Update(1);
 #endif
@@ -1128,19 +1319,15 @@ void OGL_ClearDepthBuffer()
     if ((config.updateMode == SCREEN_UPDATE_AT_1ST_PRIMITIVE) && OGL.screenUpdate)
         OGL_SwapBuffers();
 
-    //float depth = 1.0 - (gDP.fillColor.z / ((float)0x3FFF)); // broken on OMAP3
+    //float depth = 1.0 - (gDP.fillColor.z / ((float)0x3FFF));
     float depth = gDP.fillColor.z ;
 
-/////// paulscode, graphics bug-fixes
     glDisable( GL_SCISSOR_TEST );
-    glDepthMask( GL_TRUE );  // fixes side-bar graphics glitches
-//    glClearDepthf( depth );  // broken on Qualcomm Adreno
-    glClearDepthf( 1.0f );  // fixes missing graphics on Qualcomm Adreno
-    glClearColor( 0, 0, 0, 1 );
-    glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT );
+    glDepthMask(GL_TRUE );
+    glClearDepthf(depth);
+    glClear( GL_DEPTH_BUFFER_BIT );
     OGL_UpdateDepthUpdate();
     glEnable( GL_SCISSOR_TEST );
-////////
 }
 
 void OGL_ClearColorBuffer( float *color )
@@ -1155,6 +1342,96 @@ void OGL_ClearColorBuffer( float *color )
     glClear( GL_COLOR_BUFFER_BIT );
     OGL_UpdateScissor();
 
+}
+
+static void OGL_png_error(png_structp png_write, const char *message)
+{
+    printf("PNG Error: %s\n", message);
+}
+
+static void OGL_png_warn(png_structp png_write, const char *message)
+{
+    printf("PNG Warning: %s\n", message);
+}
+
+void OGL_SaveScreenshot()
+{
+    // start by getting the base file path
+    char filepath[2048], filename[2048];
+    filepath[0] = 0;
+    filename[0] = 0;
+    strcpy(filepath, screenDirectory);
+    if (strlen(filepath) > 0 && filepath[strlen(filepath)-1] != '/')
+        strcat(filepath, "/");
+    strcat(filepath, "mupen64");
+    // look for a file
+    int i;
+    for (i = 0; i < 100; i++)
+    {
+        sprintf(filename, "%s_%03i.png", filepath, i);
+        FILE *pFile = fopen(filename, "r");
+        if (pFile == NULL)
+            break;
+        fclose(pFile);
+    }
+    if (i == 100) return;
+    // allocate PNG structures
+    png_structp png_write = png_create_write_struct(PNG_LIBPNG_VER_STRING, NULL, OGL_png_error, OGL_png_warn);
+    if (!png_write)
+    {
+        printf("Error creating PNG write struct.\n");
+        return;
+    }
+    png_infop png_info = png_create_info_struct(png_write);
+    if (!png_info)
+    {
+        png_destroy_write_struct(&png_write, (png_infopp)NULL);
+        printf("Error creating PNG info struct.\n");
+        return;
+    }
+    // Set the jumpback
+    if (setjmp(png_jmpbuf(png_write)))
+    {
+        png_destroy_write_struct(&png_write, &png_info);
+        printf("Error calling setjmp()\n");
+        return;
+    }
+    // open the file to write
+    FILE *savefile = fopen(filename, "wb");
+    if (savefile == NULL)
+    {
+        printf("Error opening '%s' to save screenshot.\n", filename);
+        return;
+    }
+    // give the file handle to the PNG compressor
+    png_init_io(png_write, savefile);
+
+    // read pixel data from OpenGL
+    char *pixels;
+    int width, height;
+    OGL_ReadScreen(pixels, &width, &height );
+
+    // set the info
+    png_set_IHDR(png_write, png_info, width, height, 8, PNG_COLOR_TYPE_RGB,
+                 PNG_INTERLACE_NONE, PNG_COMPRESSION_TYPE_DEFAULT, PNG_FILTER_TYPE_DEFAULT);
+    // lock the screen, get a pointer and row pitch
+    long pitch = width * 3;
+    // allocate row pointers and scale each row to 24-bit color
+    png_byte **row_pointers;
+    row_pointers = (png_byte **) malloc(height * sizeof(png_bytep));
+    for (int i = 0; i < height; i++)
+    {
+        row_pointers[i] = (png_byte *) (pixels + (height - 1 - i) * pitch);
+    }
+    // set the row pointers
+    png_set_rows(png_write, png_info, row_pointers);
+    // write the picture to disk
+    png_write_png(png_write, png_info, 0, NULL);
+    // free memory
+    free(row_pointers);
+    png_destroy_write_struct(&png_write, &png_info);
+    free(pixels);
+    // all done
 }
 
 int OGL_CheckError()
@@ -1178,7 +1455,7 @@ int OGL_CheckError()
 
 void OGL_UpdateFrameTime()
 {
-    unsigned ticks = ticksGetTicks();
+    unsigned ticks = SDL_GetTicks();
     static unsigned lastFrameTicks = 0;
     for(int i = OGL_FRAMETIME_NUM-1; i > 0; i--) OGL.frameTime[i] = OGL.frameTime[i-1];
     OGL.frameTime[0] = ticks - lastFrameTicks;
@@ -1189,10 +1466,9 @@ void OGL_SwapBuffers()
 {
     //OGL_DrawTriangles();
     scProgramChanged = 0;
-#if 0
     static int frames = 0;
     static unsigned lastTicks = 0;
-    unsigned ticks = ticksGetTicks();
+    unsigned ticks = SDL_GetTicks();
 
     frames++;
     if (ticks >= (lastTicks + 1000))
@@ -1229,11 +1505,10 @@ void OGL_SwapBuffers()
         frames = 0;
         lastTicks = ticks;
     }
-#endif
 
 
 #ifdef PROFILE_GBI
-    u32 profileTicks = ticksGetTicks();
+    u32 profileTicks = SDL_GetTicks();
     static u32 profileLastTicks = 0;
     if (profileTicks >= (profileLastTicks + 5000))
     {
@@ -1246,11 +1521,14 @@ void OGL_SwapBuffers()
     }
 #endif
 
+    // if emulator defined a render callback function, call it before buffer swap
+    if (renderCallback) (*renderCallback)();
+
     if (config.framebuffer.enable)
     {
         glBindFramebuffer(GL_FRAMEBUFFER, 0);
-        glClearColor( 0, 0, 0, 1 );
-        glClear( GL_COLOR_BUFFER_BIT );
+        glClearColor(0,0,0,0);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(OGL.defaultProgram);
         glDisable(GL_SCISSOR_TEST);
@@ -1284,7 +1562,7 @@ void OGL_SwapBuffers()
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (float*)vert + 2);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        //Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
+        eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
 
         glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
         OGL_UpdateViewport();
@@ -1293,44 +1571,54 @@ void OGL_SwapBuffers()
     }
     else
     {
-        //Android_JNI_SwapWindow(); // paulscode, fix for black-screen bug
+        eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
     }
-
-    // if emulator defined a render callback function, call it before
-	// buffer swap
-    if (renderCallback) (*renderCallback)();
 
     OGL.screenUpdate = false;
 
     if (config.forceBufferClear)
     {
-/////// paulscode, graphics bug-fixes
-    float depth = gDP.fillColor.z ;
-    glDisable( GL_SCISSOR_TEST );
-    glDepthMask( GL_TRUE );  // fixes side-bar graphics glitches
-//    glClearDepthf( depth );  // broken on Qualcomm Adreno
-    glClearDepthf( 1.0f );  // fixes missing graphics on Qualcomm Adreno
-    glClearColor( 0, 0, 0, 1 );
-    glClear( GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT );
-    OGL_UpdateDepthUpdate();
-    glEnable( GL_SCISSOR_TEST );
-///////
+        glClearDepthf(0);
+        glClearColor(0,0,0,0);
+        glClear(GL_DEPTH_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
     }
 
 }
 
 void OGL_ReadScreen( void *dest, int *width, int *height )
 {
-    if (width)
-        *width = config.framebuffer.width;
-    if (height)
-        *height = config.framebuffer.height;
 
-    if (dest == NULL)
+    printf("READ SCREEN!\n");
+
+#if 0
+    void *rgba = malloc( OGL.winWidth * OGL.winHeight * 4 );
+    dest = malloc(OGL.winWidth * OGL.winHeight * 3);
+    if (rgba == 0 || dest == 0)
         return;
 
-    glReadPixels( config.framebuffer.xpos, config.framebuffer.ypos,
-            config.framebuffer.width, config.framebuffer.height,
-            GL_RGBA, GL_UNSIGNED_BYTE, dest );
+    *width = OGL.winWidth;
+    *height = OGL.winHeight;
+
+    glReadPixels( OGL.winXpos, OGL.winYpos, OGL.winWidth, OGL.winHeight, GL_RGBA, GL_UNSIGNED_BYTE, rgba);
+
+    //convert to RGB format:
+    char *c = (char*) rgba;
+    char *d = (char*) dest;
+    for(int i = 0; i < (OGL.winWidth * OGL.winHeight); i++)
+    {
+        d[0] = c[0];
+        d[1] = c[1];
+        d[2] = c[2];
+        d += 3;
+        c += 4;
+    }
+
+    free(rgba);
+#else
+    dest = malloc(config.window.width * config.window.height * 3);
+    memset(dest, 0, 3 * config.window.width * config.window.height);
+    *width = config.window.width;
+    *height = config.window.height;
+#endif
 }
 

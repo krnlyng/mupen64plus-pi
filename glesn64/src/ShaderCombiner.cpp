@@ -259,24 +259,24 @@ DecodedMux::DecodedMux(u64 mux, bool cycle2)
 
     //simplifying mux:
     /*if (replace(G_CYC_1CYCLE, LOD_FRACTION, ZERO) || replace(G_CYC_2CYCLE, LOD_FRACTION, ZERO))
-        //LOG(LOG_VERBOSE, "SC Replacing LOD_FRACTION with ZERO\n");
+        LOG(LOG_VERBOSE, "SC Replacing LOD_FRACTION with ZERO\n");
 #if 1
     if (replace(G_CYC_1CYCLE, K4, ZERO) || replace(G_CYC_2CYCLE, K4, ZERO))
-        //LOG(LOG_VERBOSE, "SC Replacing K4 with ZERO\n");
+        LOG(LOG_VERBOSE, "SC Replacing K4 with ZERO\n");
 
     if (replace(G_CYC_1CYCLE, K5, ZERO) || replace(G_CYC_2CYCLE, K5, ZERO))
-        //LOG(LOG_VERBOSE, "SC Replacing K5 with ZERO\n");
+        LOG(LOG_VERBOSE, "SC Replacing K5 with ZERO\n");
 #endif
 
     if (replace(G_CYC_1CYCLE, CENTER, ZERO) || replace(G_CYC_2CYCLE, CENTER, ZERO))
-        //LOG(LOG_VERBOSE, "SC Replacing CENTER with ZERO\n");
+        LOG(LOG_VERBOSE, "SC Replacing CENTER with ZERO\n");
 
     if (replace(G_CYC_1CYCLE, SCALE, ZERO) || replace(G_CYC_2CYCLE, SCALE, ZERO))
-        //LOG(LOG_VERBOSE, "SC Replacing SCALE with ZERO\n");
+        LOG(LOG_VERBOSE, "SC Replacing SCALE with ZERO\n");
 
     //Combiner has initial value of zero in cycle 0
     if (replace(G_CYC_1CYCLE, COMBINED, ZERO))
-        //LOG(LOG_VERBOSE, "SC Setting CYCLE1 COMBINED to ZERO\n");
+        LOG(LOG_VERBOSE, "SC Setting CYCLE1 COMBINED to ZERO\n");
 
     if (replace(G_CYC_1CYCLE, COMBINED_ALPHA, ZERO))
         LOG(LOG_VERBOSE, "SC Setting CYCLE1 COMBINED_ALPHA to ZERO\n");
@@ -405,7 +405,7 @@ void _glcompiler_error(GLint shader)
     log = (char*) malloc(len + 1);
     glGetShaderInfoLog(shader, len, &i, log);
     log[len] = 0;
-    //LOG(LOG_ERROR, "COMPILE ERROR: %s \n", log);
+    LOG(LOG_ERROR, "COMPILE ERROR: %s \n", log);
     free(log);
 }
 
@@ -418,7 +418,7 @@ void _gllinker_error(GLint program)
     log = (char*) malloc(len + 1);
     glGetProgramInfoLog(program, len, &i, log);
     log[len] = 0;
-    //LOG(LOG_ERROR, "LINK ERROR: %s \n", log);
+    LOG(LOG_ERROR, "LINK ERROR: %s \n", log);
     free(log);
 };
 
