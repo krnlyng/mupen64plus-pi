@@ -14,6 +14,11 @@
 #include "Textures.h"
 #include "ShaderCombiner.h"
 
+#include <dlfcn.h>
+
+#include "m64p_types.h"
+#include "m64p_plugin.h"
+
 HWND        hWnd = 0;
 char        *screenDirectory;
 u32         last_good_ucode = (u32) -1;
@@ -23,7 +28,16 @@ void        (*renderCallback)() = NULL;
 
 ptr_ConfigGetSharedDataFilepath ConfigGetSharedDataFilepath = NULL;
 
-
+ptr_VidExt_Init                  CoreVideo_Init = NULL;
+ptr_VidExt_Quit                  CoreVideo_Quit = NULL;
+ptr_VidExt_ListFullscreenModes   CoreVideo_ListFullscreenModes = NULL;
+ptr_VidExt_SetVideoMode          CoreVideo_SetVideoMode = NULL;
+ptr_VidExt_SetCaption            CoreVideo_SetCaption = NULL;
+ptr_VidExt_ToggleFullScreen      CoreVideo_ToggleFullScreen = NULL;
+ptr_VidExt_GL_GetProcAddress     CoreVideo_GL_GetProcAddress = NULL;
+ptr_VidExt_GL_SetAttribute       CoreVideo_GL_SetAttribute = NULL;
+ptr_VidExt_GL_GetAttribute       CoreVideo_GL_GetAttribute = NULL;
+ptr_VidExt_GL_SwapBuffers        CoreVideo_GL_SwapBuffers = NULL;
 
 extern "C" {
 

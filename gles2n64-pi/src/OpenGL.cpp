@@ -10,17 +10,22 @@
 #include <X11/Xutil.h>
 #include <unistd.h>
 
-#include "bcm_host.h"
+//#include "bcm_host.h"
 
 #include "GLES/gl.h"
+
+#if 0
 #include "EGL/egl.h"
 #include "EGL/eglext.h"
 
 #include <SDL.h>
 #include <SDL/SDL_syswm.h>
 
+#endif
 
 #define timeGetTime() time(NULL)
+
+#include "m64p_vidext.h"
 
 #include "Common.h"
 #include "winlnxdefs.h"
@@ -118,6 +123,8 @@ void OGL_EnableRunfast()
 #endif
 }
 
+#if 0
+
 const char* EGLErrorString()
 {
 	EGLint nErr = eglGetError();
@@ -139,6 +146,8 @@ const char* EGLErrorString()
 		default:						return "unknown";
 	}
 };
+
+#endif
 
 int OGL_IsExtSupported( const char *extension )
 {
@@ -242,6 +251,8 @@ void OGL_ResizeWindow()
 {
     //hmmm
 }
+
+#if 0
 
 #if defined(SDL_WINDOW)
 bool OGL_SDL_Start()
@@ -378,9 +389,26 @@ bool OGL_X11_Start()
 
 int oneshot_hack = 0;
 
+#endif
+
+#define screen_width 854
+#define screen_height 480
+
 bool OGL_Start()
 {
 
+	if(CoreVideo_Init() != M64ERR_SUCCESS)
+	{
+        //DebugMessage(M64MSG_ERROR,"CoreVideo_Init failed.");
+		return false;
+	}
+    
+	if(CoreVideo_SetVideoMode(screen_width, screen_height, 32, M64VIDEO_FULLSCREEN, M64VIDEOFLAG_SUPPORT_RESIZING) != M64ERR_SUCCESS)
+	{
+		//DebugMessage(M64MSG_ERROR,"CoreVideo_SetVideoMode failed.");
+		return false;
+	}
+#if 0
 
 	if(oneshot_hack == 0){
 		oneshot_hack = 1;
@@ -485,7 +513,7 @@ bool OGL_Start()
         LOG(LOG_ERROR, "EGL Make Current failed: %s \n", EGLErrorString());
         return FALSE;
     };   
-
+#endif
 /////////////////////////
 
     //eglSwapInterval(OGL.EGL.display, config.verticalSync);
@@ -498,7 +526,8 @@ bool OGL_Start()
     glClearColor(0,0,0,0);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
-    eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
+    CoreVideo_GL_SwapBuffers();
+    //eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     glFinish();
 
@@ -623,6 +652,8 @@ void OGL_Stop()
     ShaderCombiner_Destroy();
     TextureCache_Destroy();
 
+    CoreVideo_Quit();
+#if 0
 #ifdef X11_WINDOW
     if (config.window.enableX11)
         XDestroyWindow((Display*) OGL.EGL.display, (Window) OGL.EGL.handle);
@@ -634,6 +665,7 @@ void OGL_Stop()
 	eglDestroySurface(OGL.EGL.display, OGL.EGL.surface);
  	eglDestroyContext(OGL.EGL.display, OGL.EGL.context);
    	eglTerminate(OGL.EGL.display);
+#endif
 }
 
 void OGL_UpdateCullFace()
@@ -1562,7 +1594,8 @@ void OGL_SwapBuffers()
         glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (float*)vert + 2);
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
-        eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
+        CoreVideo_GL_SwapBuffers();
+        //eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
 
         glBindFramebuffer(GL_FRAMEBUFFER, OGL.framebuffer.fb);
         OGL_UpdateViewport();
@@ -1571,7 +1604,8 @@ void OGL_SwapBuffers()
     }
     else
     {
-        eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
+        CoreVideo_GL_SwapBuffers();
+        //eglSwapBuffers(OGL.EGL.display, OGL.EGL.surface);
     }
 
     OGL.screenUpdate = false;

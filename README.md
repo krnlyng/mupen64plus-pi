@@ -1,3 +1,9 @@
+begin liar-note
+this is hacked together so it can be compiled for the n9
+i've readied up gles2n64 so far, please ignore the rest
+to compile for n9 simply do make in the gles2n64 directory
+end liar-note
+
 mupen64plus-pi
 =============
 

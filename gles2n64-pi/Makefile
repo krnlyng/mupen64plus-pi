@@ -39,7 +39,7 @@ CFLAGS += -I/opt/vc/include/
 CFLAGS += -I/opt/vc/include/interface/vcos/pthreads/
 CFLAGS += -I/opt/vc/include/interface/vmcs_host/linux
 
-CFLAGS += -mcpu=arm1176jzf-s -mfpu=vfp -mfloat-abi=hard
+CFLAGS += -mfpu=neon -mfloat-abi=hard
 CFLAGS += -D__CRC_OPT -D__TRIBUFFER_OPT -D__VEC4_OPT -DARM -DUSE_SDL 
 
 ifeq ($(OS), LINUX)
@@ -47,7 +47,7 @@ CFLAGS += -Wall -D__LINUX__ -fPIC
 LDFLAGS += -L/usr/lib
 LDFLAGS += -L/opt/vc/lib
 LDFLAGS += -lEGL -lGLESv2 -lSDL -lpng12 -lz
-LDFLAGS += -lX11 -lXau -lXdmcp -shared
+LDFLAGS += -lX11 -lXau -shared
 else
 CFLAGS += -Wall
 LDFLAGS += -lSDLmain -lSDL -lpng -lGLESv2 -lEGL
